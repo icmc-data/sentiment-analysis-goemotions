@@ -4,6 +4,8 @@ import time
 
 import mysql.connector
 
+from tqdm import tqdm 
+
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer
@@ -70,10 +72,11 @@ print(f'Device set to: {device}')
 base = 'bert-base-uncased'
 model = BertForSequenceClassification.from_pretrained(base, num_labels=2, output_attentions=False, output_hidden_states=False)
 
-state_dict = torch.load('./../model_weights.pth')
-model.load_state_dict(state_dict, strict=False)
+# state_dict = torch.load('./../model_weights.pth')
+# model.load_state_dict(state_dict, strict=False)
 
 model = model.to(device)
+model.eval()
 
 def get_ids_unpredicted(table_suffix):
     cursor.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id_review WHERE P.classification IS NULL')
@@ -81,30 +84,54 @@ def get_ids_unpredicted(table_suffix):
     return unpredicted
 
 class UnlabeledDataset(Dataset):
-    def __init__(self, reviews, base):
+    def __init__(self, reviews):
         self.reviews = reviews
-        self.tokenizer = AutoTokenizer.from_pretrained(base)
     
     def __len__(self):
-        return len(self.reviews)
+        return len(self.reviews.attention_mask)
 
     def __getitem__(self, idx):
-        review = self.reviews[idx][1]
-        index  = self.reviews[idx][0]
+        attention_mask = self.reviews['attention_mask'][idx].squeeze(0)
+        input_ids = self.reviews['input_ids'][idx].squeeze(0)
+        return input_ids, attention_mask
 
-        review = pre_process_text(review)
+movie_lists = get_ids_unpredicted('Movies')
 
-        encoded_inputs = self.tokenizer.enconde_plus(
-            review,
+reviews = [str(pre_process_text(text)) for id, text in movie_lists]
+tokenizer = AutoTokenizer.from_pretrained(base)
+print(len(reviews))
+encoded_inputs = tokenizer(
+            reviews,
             padding=True,
             truncation=True,
             return_tensors='pt',
             max_length=MAX_LENGTH
-        )
-        
-        inputs = {k: v.squeeze(0) for k,v in encoded_inputs.items()}
-        return index, inputs
+)
+print(encoded_inputs)
+print(encoded_inputs[0])
+print(encoded_inputs.attention_mask[0].shape)
 
-get_ids_unpredicted('Movies')
+dataset = UnlabeledDataset(encoded_inputs)
+
+dataloader = DataLoader(dataset, batch_size=16)
+
+bar = tqdm(total=len(dataloader), desc=f"Inferece on imdb-dataset", unit="steps", position=0, leave=False)
+
+outputs = []
+model.eval()
+for i, batch in enumerate(dataloader):
+    input_ids, attention_mask = batch
+    print(batch, input_ids.shape)
+    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+
+    logits = outputs.logits
+    predictions = torch.argmax(logits, dim=-1)
+    outputs.append(predictions)
+    print(predictions)
+
+    bar.update(1)
+
+print(outputs)
+
 cursor.close()
 mydb.close()

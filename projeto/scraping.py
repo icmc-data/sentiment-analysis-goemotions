@@ -102,6 +102,15 @@ def pre_process_text(text):
 def insert_reviews(reviews_list, imdb_title, table_suffix):
     for review in reviews_list:
         try:
+            container_content = review.find_element(By.CLASS_NAME, 'content')
+            review_text = container_content.find_element(By.TAG_NAME, 'div').text
+            review_text = pre_process_text(review_text)
+            if review_text == '':
+                continue
+        except:
+            review_text = None
+
+        try:
             container_span = review.find_element(By.CLASS_NAME, 'rating-other-user-rating')
             span = container_span.find_elements(By.TAG_NAME, 'span')[0]
             review_rating = span.text
@@ -123,13 +132,6 @@ def insert_reviews(reviews_list, imdb_title, table_suffix):
             review_date = container_author.find_element(By.CLASS_NAME, 'review-date').text
         except:
             review_date = None
-        
-        try:
-            container_content = review.find_element(By.CLASS_NAME, 'content')
-            review_text = container_content.find_element(By.TAG_NAME, 'div').text
-            review_text = pre_process_text(review_text)
-        except:
-            review_text = None
 
         # write on sql bank
         cursor.execute(f'INSERT INTO IMDB_Reviews_{table_suffix} (review_rating, review_title, review_author, review_date, review_text, title) VALUES (%s, %s, %s, %s, %s, %s)', (review_rating, review_title, review_author, review_date, review_text, imdb_title))

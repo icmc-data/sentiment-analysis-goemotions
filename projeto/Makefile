@@ -1,5 +1,5 @@
 # Set the Docker Compose file name
-DOCKER_COMPOSE_FILE = docker-compose.yml
+DOCKER_COMPOSE_FILE = docker-compose.yaml
 
 # Define the Docker Compose commands
 DOCKER_COMPOSE_BUILD = docker-compose build
