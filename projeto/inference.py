@@ -66,6 +66,25 @@ def pre_process_text(text):
     
     return preprocessed_text.lower()
 
+def get_ids_unpredicted(table_suffix):
+    cursor.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id_review WHERE P.class_1 IS NULL')
+    unpredicted = cursor.fetchall()
+    return unpredicted
+
+class UnlabeledDataset(Dataset):
+    def __init__(self, ids, reviews):
+        self.reviews = reviews
+        self.ids = ids
+
+    def __len__(self):
+        return len(self.ids)
+
+    def __getitem__(self, idx):
+        id = self.ids[idx]
+        attention_mask = self.reviews['attention_mask'][idx].squeeze(0)
+        input_ids = self.reviews['input_ids'][idx].squeeze(0)
+        return id, input_ids, attention_mask
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(f'Device set to: {device}')
 
@@ -78,28 +97,13 @@ model = BertForSequenceClassification.from_pretrained(base, num_labels=2, output
 model = model.to(device)
 model.eval()
 
-def get_ids_unpredicted(table_suffix):
-    cursor.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id_review WHERE P.classification IS NULL')
-    unpredicted = cursor.fetchall()
-    return unpredicted
-
-class UnlabeledDataset(Dataset):
-    def __init__(self, reviews):
-        self.reviews = reviews
-    
-    def __len__(self):
-        return len(self.reviews.attention_mask)
-
-    def __getitem__(self, idx):
-        attention_mask = self.reviews['attention_mask'][idx].squeeze(0)
-        input_ids = self.reviews['input_ids'][idx].squeeze(0)
-        return input_ids, attention_mask
-
 movie_lists = get_ids_unpredicted('Movies')
 
-reviews = [str(pre_process_text(text)) for id, text in movie_lists]
+reviews = [str(pre_process_text(text)) for _, text in movie_lists]
+ids = [int(id) for id, _ in movie_lists]
+
 tokenizer = AutoTokenizer.from_pretrained(base)
-print(len(reviews))
+
 encoded_inputs = tokenizer(
             reviews,
             padding=True,
@@ -107,31 +111,30 @@ encoded_inputs = tokenizer(
             return_tensors='pt',
             max_length=MAX_LENGTH
 )
-print(encoded_inputs)
-print(encoded_inputs[0])
-print(encoded_inputs.attention_mask[0].shape)
 
-dataset = UnlabeledDataset(encoded_inputs)
+dataset = UnlabeledDataset(ids, encoded_inputs)
 
-dataloader = DataLoader(dataset, batch_size=16)
+dataloader = DataLoader(dataset, batch_size=8)
 
 bar = tqdm(total=len(dataloader), desc=f"Inferece on imdb-dataset", unit="steps", position=0, leave=False)
 
-outputs = []
+predictions_results = {}
 model.eval()
+
 for i, batch in enumerate(dataloader):
-    input_ids, attention_mask = batch
-    print(batch, input_ids.shape)
-    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-
-    logits = outputs.logits
-    predictions = torch.argmax(logits, dim=-1)
-    outputs.append(predictions)
-    print(predictions)
-
+    ids, input_ids, attention_mask = batch
+    with torch.no_grad():
+        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        logits = outputs.logits
+        for id, logit in zip(ids, logits):
+            predictions_results[id.item()] = logit.numpy()
     bar.update(1)
 
-print(outputs)
+for id, predict in predictions_results.items():
+    print('INSERT INTO IMDB_Reviews_Movies_Predictions (id_review, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+    cursor.execute('INSERT INTO IMDB_Reviews_Movies_Predictions (id_review, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+mydb.commit()
 
+print(predictions_results)
 cursor.close()
 mydb.close()

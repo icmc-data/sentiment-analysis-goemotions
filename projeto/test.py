@@ -17,9 +17,9 @@ cnx = mysql.connector.connect(
 # Create a new database
 cursor = cnx.cursor()
 
-cursor.execute("SELECT * FROM IMDB_Reviews_Movies")
+cursor.execute("SELECT * FROM IMDB_Reviews_Movies_Predictions")
 results = cursor.fetchall()
-print(len(results))
+print(results)
 cursor.close()
 cnx.close()
 
