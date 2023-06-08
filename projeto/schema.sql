@@ -19,17 +19,15 @@ CREATE TABLE IMDB_Reviews_Series (
 );
 
 CREATE TABLE IMDB_Reviews_Series_Predictions (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    id_review INTEGER,
+    id INTEGER PRIMARY KEY,
     class_1 FLOAT,
     class_2 FLOAT,
-    CONSTRAINT id_review_series FOREIGN KEY (id_review) REFERENCES IMDB_Reviews_Series (id)
+    CONSTRAINT id_review_series FOREIGN KEY (id) REFERENCES IMDB_Reviews_Series (id)
 );
 
 CREATE TABLE IMDB_Reviews_Movies_Predictions (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    id_review INTEGER,
+    id INTEGER PRIMARY KEY,
     class_1 FLOAT,
     class_2 FLOAT,
-    CONSTRAINT id_review_movies FOREIGN KEY (id_review) REFERENCES IMDB_Reviews_Movies (id)
+    CONSTRAINT id_review_movies FOREIGN KEY (id) REFERENCES IMDB_Reviews_Movies (id)
 );

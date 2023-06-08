@@ -67,7 +67,7 @@ def pre_process_text(text):
     return preprocessed_text.lower()
 
 def get_ids_unpredicted(table_suffix):
-    cursor.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id_review WHERE P.class_1 IS NULL')
+    cursor.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id WHERE P.class_1 IS NULL')
     unpredicted = cursor.fetchall()
     return unpredicted
 
@@ -131,8 +131,8 @@ for i, batch in enumerate(dataloader):
     bar.update(1)
 
 for id, predict in predictions_results.items():
-    print('INSERT INTO IMDB_Reviews_Movies_Predictions (id_review, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
-    cursor.execute('INSERT INTO IMDB_Reviews_Movies_Predictions (id_review, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+    print('INSERT INTO IMDB_Reviews_Movies_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+    cursor.execute('INSERT INTO IMDB_Reviews_Movies_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
 mydb.commit()
 
 print(predictions_results)
