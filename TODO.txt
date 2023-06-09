@@ -1,0 +1,20 @@
+TODO:
+- Criar um protótipo da interface: @all
+  - dropdown list para as séries e os filmes
+  - botão para requisitar
+  - em um protótipo de request para um backend
+  - protótipo de análise (histograma, spider plot)
+
+- Estudo do modelo: @frois
+  - identificar o número de classes no treinamento do go_emotions
+  - técnicas de pré-processamento
+  - talvez mudar o modelo (BERT) para o diltbert, por questão de memória RAM 
+
+- Desenvolver a api: @ortega
+  - app chama a api, que faz a comunicação com a base de dados diretamente
+  
+- Dar uma olhada em como sincronizar tudo: @ortega
+  - identificar como impedir scraping desnecessário 
+  - a gente precisa de um scheduler de processos:
+    * scrapar os textos mais recentes
+    * predict dos textos mais recentes
