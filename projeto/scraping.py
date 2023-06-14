@@ -1,6 +1,7 @@
 import re
 import os 
 import time
+import traceback
 
 import mysql.connector
 
@@ -133,8 +134,23 @@ def insert_reviews(reviews_list, imdb_title, table_suffix):
         except:
             review_date = None
 
+
         # write on sql bank
-        cursor.execute(f'INSERT INTO IMDB_Reviews_{table_suffix} (review_rating, review_title, review_author, review_date, review_text, title) VALUES (%s, %s, %s, %s, %s, %s)', (review_rating, review_title, review_author, review_date, review_text, imdb_title))
+        try:
+            cursor.execute(
+                f'INSERT INTO IMDB_{table_suffix} (title, n_reviews)'
+                'VALUES (%s, %s)', (imdb_title, 1))
+        except:
+            cursor.execute(
+                f'UPDATE IMDB_{table_suffix} SET n_reviews = n_reviews + 1 '
+                'WHERE (title) = (%s)', (imdb_title,))
+                
+        mydb.commit()
+        cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title = (%s)", (imdb_title,))
+        id_title = cursor.fetchone()[0]
+        cursor.reset()
+
+        cursor.execute(f'INSERT INTO IMDB_Reviews_{table_suffix} (review_rating, review_title, review_author, review_date, review_text, id_title) VALUES (%s, %s, %s, %s, %s, %s)', (review_rating, review_title, review_author, review_date, review_text, id_title))
 
     mydb.commit()
 
@@ -154,7 +170,7 @@ def imdb_scrape(driver, wait, urls_list, table_suffix):
             reviews = imdb_scrape_reviews(driver, wait)
             insert_reviews(reviews, title_name, table_suffix)
         except Exception as e:
-            print(e)
+            print(e, traceback.format_exc())
             print('Error fetching reviews')
 
 def fetch_title_links(driver):
@@ -188,8 +204,8 @@ def init_driver():
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
-    # driver = webdriver.Chrome(executable_path='./chromedriver', options=options)
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = webdriver.Chrome(executable_path='./chromedriver', options=chrome_options)
+    # driver = webdriver.Chrome(options=chrome_options)
 
     wait = WebDriverWait(driver, 5)
     return driver, wait
