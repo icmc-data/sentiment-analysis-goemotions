@@ -2,9 +2,9 @@
 DOCKER_COMPOSE_FILE = docker-compose.yaml
 
 # Define the Docker Compose commands
-DOCKER_COMPOSE_BUILD = docker-compose build
-DOCKER_COMPOSE_UP = docker-compose up -d
-DOCKER_COMPOSE_DOWN = docker-compose down
+DOCKER_COMPOSE_BUILD = docker compose build
+DOCKER_COMPOSE_UP = docker compose up -d
+DOCKER_COMPOSE_DOWN = docker compose down
 
 # Load environment variables from .env file
 include .env
@@ -19,3 +19,6 @@ down:
 up: build
 	MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) MYSQL_DATABASE=$(MYSQL_DATABASE) MYSQL_HOST=$(MYSQL_HOST) \
 	$(DOCKER_COMPOSE_UP)
+
+env:
+	export $$(grep -v '^#' .env | xargs -d '\n')
