@@ -90,11 +90,12 @@ def load_reviews_list(driver, wait, total_reviews):
 
 def pre_process_text(text):
     preprocessed_text = re.sub(r'\n+', '\n', text)
-    # preprocessed_text = re.sub(r'http\S+', '', text) # removendo links
-    # preprocessed_text = preprocessed_text.replace('"', '')    # removendo aspas
+    preprocessed_text = re.sub(r'http\S+', '', text) # removendo links
+    preprocessed_text = preprocessed_text.replace('"', '')    # removendo aspas
+    preprocessed_text = re.sub(r"<\S*\ ?\/?>", '', preprocessed_text)
     preprocessed_text = re.sub("[-*!,$><:.+?=]", '', preprocessed_text) # remove outras pontuações
 
-    # preprocessed_text = re.sub(r'[.]\s+', '', preprocessed_text)  # removendo reticências 
+    preprocessed_text = re.sub(r'[.]\s+', '', preprocessed_text)  # removendo reticências 
     preprocessed_text = re.sub(r'  ', ' ', preprocessed_text) # removendo espaços extras
     
     return preprocessed_text.lower()
