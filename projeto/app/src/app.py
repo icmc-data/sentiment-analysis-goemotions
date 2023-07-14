@@ -1,12 +1,61 @@
+import os
+import time
 import dash
 from dash import dcc
 from dash import html
 import plotly.graph_objects as go
 import pandas as pd 
+# import mysql.connector
 
 app = dash.Dash(__name__)
 
-# Define the dropdown options
+# Função para aguardar o banco de dados estar pronto
+# def wait_for_db():
+#     max_attempts = 10
+#     attempts = 0
+#     while attempts < max_attempts:
+#         try:
+#             # Tenta conectar ao banco de dados
+#             mydb = mysql.connector.connect(
+#                 host=os.environ.get('MYSQL_HOST'),
+#                 user=os.environ.get('MYSQL_USER'),
+#                 password=os.environ.get('MYSQL_ROOT_PASSWORD'),
+#                 database=os.environ.get('MYSQL_DATABASE')
+#             )
+#             mydb.close()
+#             break  # Conexão bem-sucedida, sai do loop
+#         except mysql.connector.Error as err:
+#             print(f"Erro ao conectar ao banco de dados: {err}")
+#             attempts += 1
+#             time.sleep(10)  # Aguarda 5 segundos antes de tentar novamente
+#     else:
+#         # Caso atinja o limite de tentativas, exibe uma mensagem de erro
+#         print("Não foi possível conectar ao banco de dados após várias tentativas.")
+
+# wait_for_db()
+
+# mydb = mysql.connector.connect(
+#     host=os.environ.get('MYSQL_HOST'),
+#     user=os.environ.get('MYSQL_USER'),
+#     password=os.environ.get('MYSQL_ROOT_PASSWORD'),
+#     database=os.environ.get('MYSQL_DATABASE')
+# )
+
+# cursor = mydb.cursor()
+
+# cursor.execute("SELECT title FROM IMDB_Movies")
+# movie_titles = cursor.fetchall()
+
+# cursor.execute("SELECT title FROM IMDB_Series")
+# series_titles = cursor.fetchall()
+
+# # Define the dropdown options
+# dropdown_options = {'Movies':
+#                     [{'label': title, 'value': title} for title in movie_titles], 
+#                     'Series':
+#                     [{'label': title, 'value': title} for title in series_titles]
+# }
+
 dropdown_options = {'Movies':
                     [
                         {'label': 'O poderoso chefão', 'value': 'O poderoso chefão'},
@@ -63,12 +112,15 @@ def change_dropdown_options(check_option):
     dash.dependencies.Output('output', 'children'),
     dash.dependencies.Output('plot', 'figure'),
     dash.dependencies.Input('send-button', 'n_clicks'),
-    dash.dependencies.State('dropdown', 'value')
+    dash.dependencies.State('dropdown', 'value'),
+    dash.dependencies.State('check_options', 'value')
 )
-def update_output(n_clicks, selected_option):
+def update_output(n_clicks, selected_option, type_option):
     fig = go.Figure(data=go.Scatterpolar(r=[1,5,2,2,3], theta=['Joy','Awful','Bad','Surprise', 'Excitement'], fill='toself'))
+    
+    # cursor.execute(f'SELECT * FROM IMDB_Revies_{type_option}_Predictions P JOIN IMDB_Reviews_{type_option} R ON R.id=P.id JOIN IMDB_{type_option} T ON R.id_title=T.id_title')
+    
     return f"Filme selecionado: {selected_option}. Button clicked {n_clicks} times.", fig
-
 
 if __name__ == "__main__":
     app.run_server(debug=True)

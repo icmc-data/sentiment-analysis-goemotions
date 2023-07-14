@@ -1,17 +1,20 @@
+CREATE DATABASE imdb_reviews;
+\connect imdb_reviews;
+
 CREATE TABLE IMDB_Movies (
-    id_title INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_title SERIAL PRIMARY KEY,
     title VARCHAR(255),
     n_reviews INTEGER
 );
 
 CREATE TABLE IMDB_Series (
-    id_title INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_title SERIAL PRIMARY KEY,
     title VARCHAR(255),
     n_reviews INTEGER
 );
 
 CREATE TABLE IMDB_Reviews_Movies (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     id_title INTEGER,
     review_rating VARCHAR(10),
     review_title VARCHAR(255),
@@ -22,8 +25,8 @@ CREATE TABLE IMDB_Reviews_Movies (
 );
 
 CREATE TABLE IMDB_Reviews_Series (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    id_title VARCHAR(255),
+    id SERIAL PRIMARY KEY,
+    id_title INTEGER,
     review_rating VARCHAR(10),
     review_title VARCHAR(255),
     review_author VARCHAR(255),

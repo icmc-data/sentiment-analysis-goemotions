@@ -1,2 +1,4 @@
 selenium==4.9.1
 mysql-connector-python
+psycopg2==2.9.5
+sqlalchemy==1.4.45
