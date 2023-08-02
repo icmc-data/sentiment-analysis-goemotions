@@ -44,4 +44,4 @@ db = create_engine(db_string)
 # Scrapa os dados do imdb
 scraping.scrape_reviews(db)
 # Faz a inferências nos dados da base
-# inference.predict_reviews(db)
+inference.predict_reviews(db)

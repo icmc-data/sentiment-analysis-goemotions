@@ -40,7 +40,7 @@ def load_model(device, base):
     return model
 
 def load_reviews(mydb, table_suffix):
-    movie_lists = get_ids_unpredicted(mydb, 'Movies')
+    movie_lists = get_ids_unpredicted(mydb, table_suffix)
     print(len(movie_lists))
 
     reviews = [text for _, text in movie_lists]
@@ -99,11 +99,13 @@ def predict_database(mydb, table_suffix):
     return predictions_results
 
 def predict_reviews(mydb):
-    predictions_results = predict_database(mydb)
-    print(predictions_results)
-    
-    for id, predict in predictions_results.items():
-        print('INSERT INTO IMDB_Reviews_Movies_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
-        mydb.execute('INSERT INTO IMDB_Reviews_Movies_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
-    
-    print(predictions_results)
+    tables = ['Movies', 'Series']
+    for table in tables:
+        predictions_results = predict_database(mydb, table)
+        print(predictions_results)
+        
+        for id, predict in predictions_results.items():
+            print(f'INSERT INTO IMDB_Reviews_{table}_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+            mydb.execute(f'INSERT INTO IMDB_Reviews_{table}_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+        
+        print(predictions_results)

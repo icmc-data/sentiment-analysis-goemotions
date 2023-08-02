@@ -23,38 +23,10 @@ def get_total_reviews(wait):
 
     return total_reviews
 
-# def load_reviews_list(driver, wait, total_reviews):
-#     if total_reviews > NUM_REVIEWS_PER_LOAD:
-#         n_load_more = total_reviews // NUM_REVIEWS_PER_LOAD
-
-#         # Adjust the wait time dynamically
-#         wait_time = 5
-#         if n_load_more > 5:
-#             wait_time = 2
-#         if n_load_more > 10:
-#             wait_time = 1
-
-#         # Set implicit wait on the driver
-#         driver.implicitly_wait(wait_time)
-
-#         # Find the "load more" button using a faster locator strategy
-#         load_more_btn = driver.find_element(By.CSS_SELECTOR, 'button#load-more-trigger')
-#         for i in range(n_load_more):
-#             try:
-#                 # Execute JavaScript to click the "load more" button
-#                 driver.execute_script("arguments[0].click();", load_more_btn)
-#             except Exception as e:
-#                 print('Exception:', e)
-
-#     # Reset the implicit wait to the default value
-#     driver.implicitly_wait(5)
-
-#     review_list = driver.find_elements(By.XPATH, '//div[@class="lister-item-content"]')
-#     return review_list
-
 def load_reviews_list(driver, wait, total_reviews):
     if total_reviews > NUM_REVIEWS_PER_LOAD:
         n_load_more = total_reviews // NUM_REVIEWS_PER_LOAD
+        n_load_more = 1
 
         # Find the "load more" button using a faster locator strategy
         load_more_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button#load-more-trigger')))
@@ -157,8 +129,9 @@ def imdb_scrape(mydb, driver, wait, urls_list, table_suffix):
 
 def fetch_title_links(wait):
     try:
-        td_elements = wait.until(EC.visibility_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]')))
-        title_list = [td.find_element(By.TAG_NAME, 'a').get_attribute('href') for td in td_elements]
+        elements = wait.until(EC.visibility_of_all_elements_located((By.XPATH, '//a[@class="ipc-title-link-wrapper"]')))
+        url_list = [element.get_attribute('href') for element in elements]
+        title_list = [url for url in url_list if url.startswith('https://www.imdb.com/title/')]
         print(f'Title list: {len(title_list)}')
         return title_list
     except Exception as e:
