@@ -7,17 +7,17 @@ import scraping
 from sqlalchemy import create_engine, exc
 from sqlalchemy.exc import IntegrityError, InternalError
 
-# DB_NAME = os.environ.get("POSTGRES_NAME")
-# DB_USER = os.environ.get("POSTGRES_USER")
-# DB_PASS = os.environ.get("POSTGRES_PASSWORD")
-# DB_HOST = os.environ.get("POSTGRES_HOST")
-# DB_PORT = os.environ.get("POSTGRES_PORT")
+DB_NAME = os.environ.get("POSTGRES_NAME")
+DB_USER = os.environ.get("POSTGRES_USER")
+DB_PASS = os.environ.get("POSTGRES_PASSWORD")
+DB_HOST = os.environ.get("POSTGRES_HOST")
+DB_PORT = os.environ.get("POSTGRES_PORT")
 
-DB_NAME = "imdb_reviews"
-DB_USER = "postgres"
-DB_PASS = "admin"
-DB_HOST = "localhost"
-DB_PORT = "5432"
+# DB_NAME = "imdb_reviews"
+# DB_USER = "postgres"
+# DB_PASS = "admin"
+# DB_HOST = "localhost"
+# DB_PORT = "5432"
 
 # Função para aguardar o banco de dados estar pronto
 def wait_for_db():
