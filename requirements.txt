@@ -8,3 +8,6 @@ tqdm==4.65.0
 torch==2.0.1
 transformers==4.30.2
 webdriver-manager==3.8.6
+dash
+pandas
+plotly

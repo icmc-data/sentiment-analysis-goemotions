@@ -1,14 +1,17 @@
-FROM selenium/standalone-chrome
+FROM python:3.8-slim-buster
 
-WORKDIR /app
+EXPOSE 5432
 
-COPY requirements.txt chromedriver .
-USER root
-RUN apt-get update && apt-get install python3-distutils -y && apt-get install -y libglib2.0-0
-RUN wget https://bootstrap.pypa.io/get-pip.py
-RUN python3 get-pip.py
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y gcc default-libmysqlclient-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
-
-CMD ["python3", "run.py"]
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install mysql \
+    && pip install -r requirements.txt
+  
+COPY app.py .
+  
+ CMD [ "python", "app.py"]
