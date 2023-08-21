@@ -11,26 +11,25 @@ app = dash.Dash(__name__)
 
 # Função para aguardar o banco de dados estar pronto
 def wait_for_db():
-    max_attempts = 1
+    max_attempts = 10
     attempts = 0
     while attempts < max_attempts:
         try:
             # Tenta conectar ao banco de dados
             mydb = psycopg2.connect(
-                host=os.environ.get('MYSQL_HOST'),
-                user=os.environ.get('MYSQL_USER'),
-                password=os.environ.get('MYSQL_ROOT_PASSWORD'),
-                database=os.environ.get('MYSQL_DATABASE'),
+                host='postgresql',
+                user=os.environ.get('POSTGRES_USER'),
+                password=os.environ.get('POSTGRES_PASSWORD'),
+                database=os.environ.get('POSTGRES_NAME'),
                 port=os.environ.get('POSTGRES_PORT')
             )
             return mydb
         except Exception as err:
             print(f"Erro ao conectar ao banco de dados: {err}")
             attempts += 1
-            time.sleep(10)  # Aguarda 5 segundos antes de tentar novamente
-    else:
-        # Caso atinja o limite de tentativas, exibe uma mensagem de erro
-        print("Não foi possível conectar ao banco de dados após várias tentativas.")
+            time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
+    # Caso atinja o limite de tentativas, exibe uma mensagem de erro
+    print("Não foi possível conectar ao banco de dados após várias tentativas.")
 
 mydb = wait_for_db()
 
@@ -116,4 +115,4 @@ def update_output(n_clicks, selected_option, type_option):
     return f"Filme selecionado: {selected_option}. Button clicked {n_clicks} times.", fig
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True, host='0.0.0.0', port=8050)
