@@ -3,7 +3,6 @@ version: '3'
 services:
   postgresql:
     container_name: database
-
     image: postgres:latest
     volumes:
       - postgres-vol:/var/lib/postgresql/data
@@ -13,6 +12,21 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
+
+  imdb_scraping:
+    container_name: scraping
+    image: selenium/standalone-chrome:latest
+    build:
+      context: src/scraping    
+    restart: always
+    depends_on:
+      - postgresql
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_NAME: ${POSTGRES_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: ${POSTGRES_PORT}
 
   dashboard:
     container_name: dash-app
@@ -30,12 +44,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PORT: ${POSTGRES_PORT}
 
-  # database-scripts:
-  #   image: scraping-infer-image
-  #   build:
-  #     context: ./database_scripts
-  #   depends_on:
-  #     - postgresql
+
 
 volumes:
   postgres-vol:

@@ -9,10 +9,33 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+# from selenium.webdriver.chrome.options import Options as ChromeOptions
 # from selenium.webdriver.chrome.service import Service
 # from webdriver_manager.chrome import ChromeDriverManager
+import psycopg2
 
 
+
+def wait_for_db():
+    max_attempts = 10
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            # Tenta conectar ao banco de dados
+            mydb = psycopg2.connect(
+                host='postgresql',
+                user=os.environ.get('POSTGRES_USER'),
+                password=os.environ.get('POSTGRES_PASSWORD'),
+                database=os.environ.get('POSTGRES_NAME'),
+                port=os.environ.get('POSTGRES_PORT')
+            )
+            return mydb
+        except Exception as err:
+            print(f"Erro ao conectar ao banco de dados: {err}")
+            attempts += 1
+            time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
+    # Caso atinja o limite de tentativas, exibe uma mensagem de erro
+    print("Não foi possível conectar ao banco de dados após várias tentativas.")
 
 NUM_REVIEWS_PER_LOAD = 25
 
@@ -94,7 +117,8 @@ def insert_reviews(mydb, reviews_list, title_id, table_suffix):
             review_date = None
 
         # write on sql bank
-        mydb.execute(f'INSERT INTO IMDB_Reviews_{table_suffix} (review_rating, review_title, review_author, review_date, review_text, id_title) VALUES (%s, %s, %s, %s, %s, %s)', (review_rating, review_title, review_author, review_date, review_text, title_id))
+        cursor = mydb.cursor()
+        cursor.execute(f'INSERT INTO IMDB_Reviews_{table_suffix} (review_rating, review_title, review_author, review_date, review_text, id_title) VALUES (%s, %s, %s, %s, %s, %s)', (review_rating, review_title, review_author, review_date, review_text, title_id))
         
 def imdb_scrape_reviews(driver, wait):
     total_reviews = get_total_reviews(wait)
@@ -102,10 +126,11 @@ def imdb_scrape_reviews(driver, wait):
     return reviews_list
 
 def query_title(mydb, title_name, n_reviews, table_suffix):
+    cursor = mydb.cursor()
     title_name = re.sub(r'\'', "''", title_name)
-    id = list(mydb.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'"))
+    id = list(cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'"))
     if len(id) == 0:
-        result = mydb.execute(f'INSERT INTO IMDB_{table_suffix} (title, n_reviews) VALUES (%s, %s) RETURNING id_title', (title_name, n_reviews))
+        result = cursor.execute(f'INSERT INTO IMDB_{table_suffix} (title, n_reviews) VALUES (%s, %s) RETURNING id_title', (title_name, n_reviews))
         id = result.fetchone()[0]
     else:
         id = id[0][0]
@@ -161,14 +186,9 @@ def init_driver():
     # service = Service(executable_path=r'./chromedriver')
     # driver = webdriver.Chrome(ChromeDriverManager().install())
 
-    # Set up dynamic user agent
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36"
-    d = DesiredCapabilities.CHROME
-    d['goog:loggingPrefs'] = {'performance': 'ALL'}
-    d['goog:chromeOptions'] = {'w3c': False}
-    d['user-agent'] = user_agent
-
     chrome_options = webdriver.ChromeOptions()
+    # chrome_options.goog.loggingPrefs = {'performance': 'ALL'}
+    # chrome_options.goog.chromeOptions = {'w3c': False}
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
@@ -176,7 +196,7 @@ def init_driver():
     chrome_options.add_argument('--ignore-ssl-errors=yes')
     chrome_options.add_argument('--ignore-certificate-errors')
     
-    driver = webdriver.Chrome(desired_capabilities=d, chrome_options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
 
     # driver = webdriver.Chrome(service=service, options=chrome_options)
     # driver = webdriver.Chrome(options=chrome_options)
@@ -197,3 +217,7 @@ def scrape_reviews(mydb):
     
     imdb_scrape(mydb, driver, wait, movies_links, table_suffix='Movies')
     imdb_scrape(mydb, driver, wait, series_links, table_suffix='Series')
+
+if __name__ == "__main__":
+    mydb = wait_for_db()
+    scrape_reviews(mydb)
