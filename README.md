@@ -6,6 +6,8 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 
 ## Authors
 
+- [@allthecoder](https://github.com/allthecoder)
+- [@bmarquescost](https://github.com/bmarquescost)
 - [@vitorfrois](https://www.github.com/vitorfrois)
 
 
