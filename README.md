@@ -39,6 +39,9 @@ Do not forget to pause the container after using it
 ## Tech Stack
 
 **ML:** PyTorch
+
 **Datasets**: GoEmotions, IMDB Reviews
+
 **App**: Dash
+
 **Other**: Docker
