@@ -19,7 +19,7 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 
 ## Screenshots
 
-![App Screenshot](https://via.placeholder.com/468x300?text=App+Screenshot+Here)
+![App Screenshot](DashAppScreenshot.png)
 
 
 ## Installation
