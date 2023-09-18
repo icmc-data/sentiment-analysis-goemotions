@@ -37,6 +37,7 @@ def wait_for_db():
     # Caso atinja o limite de tentativas, exibe uma mensagem de erro
     print("Não foi possível conectar ao banco de dados após várias tentativas.")
 
+
 @dataclass
 class ReviewInfo:
     text: str
@@ -48,6 +49,7 @@ class ReviewInfo:
 
 class DatabaseHelper:
     def __init__(self):
+        print("Init DB connection")
         self.mydb = wait_for_db()
         self.cursor = self.mydb.cursor()
 
@@ -59,9 +61,8 @@ class DatabaseHelper:
             (review.rating, review.title, review.author, review.date, review.text, title_id)
         )
 
-    def query_title(self, title_name, n_reviews, table_suffix):
+    def query_title(self, title_name, n_reviews, table_suffix) -> str:
         title_name = re.sub(r'\'', "''", title_name)
-        print(table_suffix, title_name)
         self.cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'")
         id_title = self.cursor.fetchone()
         if id_title is None:
@@ -79,6 +80,8 @@ class DatabaseHelper:
     def close_connection(self):
         self.cursor.close()
         self.mydb.close()
+        print("Close DB connection")
+
 
 class ImdbScraper:
     driver = None
@@ -97,7 +100,8 @@ class ImdbScraper:
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument(
-            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/91.0.4472.124 Safari/537.36")
         chrome_options.add_argument('--ignore-ssl-errors=yes')
         chrome_options.add_argument('--ignore-certificate-errors')
         driver = webdriver.Chrome(options=chrome_options)
@@ -118,15 +122,14 @@ class ImdbScraper:
 
     def fetch_reviews_info_list(self, total_reviews) -> list:
         if total_reviews > NUM_REVIEWS_PER_LOAD:
-            n_load_more = total_reviews // NUM_REVIEWS_PER_LOAD
+            # n_load_more = total_reviews // NUM_REVIEWS_PER_LOAD
             n_load_more = 1
 
             # Find the "load more" button using a faster locator strategy
-            load_more_btn = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button#load-more-trigger')))
+            load_more_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button#load-more-trigger')))
             for _ in range(n_load_more):
                 try:
-                    # Execute JavaScript to click the "load more" button
-                    self.driver.execute_script("arguments[0].click();", load_more_btn)
+                    self.driver.execute_script("arguments[0].click();", load_more_button)
                 except Exception as e:
                     print('Exception:', e, traceback.format_exc())
 
@@ -138,13 +141,12 @@ class ImdbScraper:
         return review_info_list
 
     @staticmethod
-    def pre_process_text(text):
+    def pre_process_text(text) -> str:
         preprocessed_text = re.sub(r'\n+', '\n', text)
-        preprocessed_text = re.sub(r'http\S+', '', text)  # removendo links
+        preprocessed_text = re.sub(r'http\S+', '', preprocessed_text)  # removendo links
         preprocessed_text = preprocessed_text.replace('"', '')  # removendo aspas
         preprocessed_text = re.sub(r"<\S* ?/?>", '', preprocessed_text)
         preprocessed_text = re.sub("[-*!,$><:.+?=]", '', preprocessed_text)  # remove outras pontuações
-
         preprocessed_text = re.sub(r'[.]\s+', '', preprocessed_text)  # removendo reticências 
         preprocessed_text = re.sub(r' ', ' ', preprocessed_text)  # removendo espaços extras
         preprocessed_text = re.sub(r'\'', "''", preprocessed_text)
@@ -155,7 +157,7 @@ class ImdbScraper:
             self.db_helper.insert_review(
                 table_suffix, title_id, review_info)
 
-    def fetch_reviews_info(self, reviews_list):
+    def fetch_reviews_info(self, reviews_list) -> list:
         reviews_info: list[ReviewInfo] = []
         for review in reviews_list:
             try:
@@ -204,7 +206,6 @@ class ImdbScraper:
                 EC.visibility_of_all_elements_located((By.XPATH, '//a[@class="ipc-title-link-wrapper"]')))
             url_list = [element.get_attribute('href') for element in elements]
             title_list = [url for url in url_list if url.startswith('https://www.imdb.com/title/')]
-            print(f'Title list: {len(title_list)}')
             return title_list
         except Exception as e:
             print(e)
@@ -226,12 +227,10 @@ class ImdbScraper:
         for url in tqdm(urls_list):
             try:
                 review_url = re.sub("(\?[A-Za-z0-9\_=&\\\/-]*)", 'reviews', url)
-                print(f'Going to reviews page: {review_url}')
                 self.driver.get(review_url)
                 div_parent = self.wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@class="parent"]')))
                 title_name = div_parent.find_element(By.TAG_NAME, 'a').text
 
-                print(f'Retrieving reviews for {table_suffix[:-1].lower()}: {title_name}')
                 total_reviews = self.get_number_reviews()
                 reviews_info = self.fetch_reviews_info_list(total_reviews)
 
@@ -241,7 +240,6 @@ class ImdbScraper:
             except Exception as e:
                 print(traceback.format_exc())
                 print('Error fetching reviews')
-            break
 
     def scrape_reviews(self):
         try:
