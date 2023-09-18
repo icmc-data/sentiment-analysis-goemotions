@@ -14,6 +14,7 @@ import traceback
 import psycopg2
 
 NUM_REVIEWS_PER_LOAD = 25
+TITLES_TO_FETCH = 250
 
 
 def wait_for_db():
@@ -71,7 +72,7 @@ class DatabaseHelper:
                 (title_name, n_reviews))
             id_title = self.cursor.fetchone()[0]
         else:
-            id_title = id_title[0][0]
+            id_title = id_title
         return id_title
 
     def commit_changes(self):
@@ -120,7 +121,7 @@ class ImdbScraper:
 
         return int(number_reviews)
 
-    def fetch_reviews_info_list(self, total_reviews) -> list:
+    def fetch_reviews_info_list(self, total_reviews: int) -> list:
         if total_reviews > NUM_REVIEWS_PER_LOAD:
             # n_load_more = total_reviews // NUM_REVIEWS_PER_LOAD
             n_load_more = 1
@@ -141,7 +142,7 @@ class ImdbScraper:
         return review_info_list
 
     @staticmethod
-    def pre_process_text(text) -> str:
+    def pre_process_text(text: str) -> str:
         preprocessed_text = re.sub(r'\n+', '\n', text)
         preprocessed_text = re.sub(r'http\S+', '', preprocessed_text)  # removendo links
         preprocessed_text = preprocessed_text.replace('"', '')  # removendo aspas
@@ -152,12 +153,12 @@ class ImdbScraper:
         preprocessed_text = re.sub(r'\'', "''", preprocessed_text)
         return preprocessed_text.lower()
 
-    def insert_review_info(self, reviews_info, title_id, table_suffix):
+    def insert_review_info(self, reviews_info: list, title_id: str, table_suffix: str):
         for review_info in reviews_info:
             self.db_helper.insert_review(
                 table_suffix, title_id, review_info)
 
-    def fetch_reviews_info(self, reviews_list) -> list:
+    def fetch_reviews_info(self, reviews_list: list) -> list:
         reviews_info: list[ReviewInfo] = []
         for review in reviews_list:
             try:
@@ -200,7 +201,7 @@ class ImdbScraper:
 
         return reviews_info
 
-    def fetch_titles_links(self):
+    def fetch_titles_links(self) -> list:
         try:
             elements = self.wait.until(
                 EC.visibility_of_all_elements_located((By.XPATH, '//a[@class="ipc-title-link-wrapper"]')))
@@ -217,13 +218,16 @@ class ImdbScraper:
             EC.visibility_of_all_elements_located((By.XPATH, '//a[@class="ipc-title-link-wrapper"]')))
         url_list = [element.get_attribute('href') for element in elements]
         title_link_list = [url for url in url_list if url.startswith('https://www.imdb.com/title/')]
+        
+        number_titles = len(title_link_list)
+        print(number_titles)
 
-        if len(title_link_list) == 0:
+        if number_titles == 0:
             raise Exception(f"Could not fetch titles from {reviews_category_url} links correctly")
 
-        return title_link_list
+        return title_link_list[:min(number_titles, TITLES_TO_FETCH)]
 
-    def fetch_imdb_reviews(self, urls_list, table_suffix):
+    def fetch_imdb_reviews(self, urls_list: list, table_suffix: str):
         for url in tqdm(urls_list):
             try:
                 review_url = re.sub("(\?[A-Za-z0-9\_=&\\\/-]*)", 'reviews', url)
