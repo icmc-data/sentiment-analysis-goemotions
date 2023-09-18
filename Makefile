@@ -22,3 +22,6 @@ up: build
 	POSTGRES_HOST=$(POSTGRES_HOST) \
 	POSTGRES_PORT=$(POSTGRES_PORT) \
 	$(DOCKER_COMPOSE_UP) 
+
+clean:
+	docker image prune -a
