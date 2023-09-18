@@ -25,3 +25,6 @@ up: build
 
 clean:
 	docker image prune -a
+
+scrap:
+    docker exec -it scraping sh -c "python3 scraping.py"
