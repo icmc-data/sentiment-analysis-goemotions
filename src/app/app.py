@@ -28,6 +28,7 @@ def wait_for_db():
             print(f"Erro ao conectar ao banco de dados: {err}")
             attempts += 1
             time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
+    else:
     # Caso atinja o limite de tentativas, exibe uma mensagem de erro
     print("Não foi possível conectar ao banco de dados após várias tentativas.")
 
@@ -48,20 +49,6 @@ dropdown_options = {'Movies':
                     [{'label': title, 'value': title} for title in series_titles]
 }
 
-dropdown_options = {'Movies':
-                    [
-                        {'label': 'O poderoso chefão', 'value': 'O poderoso chefão'},
-                        {'label': 'Miranha', 'value': 'Miranha'},
-                        {'label': 'Flash', 'value': 'Flash'}
-                    ], 'Series':
-                    [
-                        {'label': 'breaking bad', 'value': 'breaking bad'},
-                        {'label': 'sucession', 'value': 'sucession'},
-                        {'label': 'sla', 'value': 'sla'}
-                    ]
-                    }
-
-
 app.layout = html.Div(
     children=[
         html.H1("IMDB reviews classifications", style = {"text-align": "center", "margin":"20px 0px 20px 0px"}),
@@ -77,9 +64,15 @@ app.layout = html.Div(
                 dcc.RadioItems(id='check_options', options=[
                                'Movies', 'Series'], value='Movies', inline=True),
                 dcc.Dropdown(
-                    id="dropdown",
+                    id="dropdown-1",
                     options=dropdown_options['Movies'],
-                    value='filme1',  # Default selected option
+                    value=dropdown_options['Movies'][0]['value'],  # Default selected option
+                    style = {"width":"80%"}
+                ),
+                dcc.Dropdown(
+                    id="dropdown-2",
+                    options=dropdown_options['Movies'],
+                    value=dropdown_options['Movies'][1]['value'],  # Default selected option
                     style = {"width":"80%"}
                 ),
                 html.Button("Select", id="send-button", n_clicks=0, style={"width": "100px"}),
@@ -93,26 +86,45 @@ app.layout = html.Div(
 )
 
 @app.callback(
-    dash.dependencies.Output('dropdown', 'options'),
-    dash.dependencies.Output('dropdown', 'value'),
+    dash.dependencies.Output('dropdown-1', 'options'),
+    dash.dependencies.Output('dropdown-1', 'value'),
+    dash.dependencies.Output('dropdown-2', 'options'),
+    dash.dependencies.Output('dropdown-2', 'value'),
     dash.dependencies.Input('check_options', 'value')
 )
 def change_dropdown_options(check_option):
-    return dropdown_options[check_option], dropdown_options[check_option][0]['value']
+    return dropdown_options[check_option], dropdown_options[check_option][0]['value'], dropdown_options[check_option], dropdown_options[check_option][1]['value']
 
 @app.callback(
     dash.dependencies.Output('output', 'children'),
     dash.dependencies.Output('plot', 'figure'),
     dash.dependencies.Input('send-button', 'n_clicks'),
-    dash.dependencies.State('dropdown', 'value'),
+    dash.dependencies.State('dropdown-1', 'value'),
+    dash.dependencies.State('dropdown-2', 'value'),
     dash.dependencies.State('check_options', 'value')
 )
-def update_output(n_clicks, selected_option, type_option):
-    fig = go.Figure(data=go.Scatterpolar(r=[1,5,2,2,3], theta=['Joy','Awful','Bad','Surprise', 'Excitement'], fill='toself'))
+def update_output(n_clicks, selected_first_title, selected_second_title, type_option):
+    columns = ['admiration','amusement','anger','annoyance','approval','caring','confusion','curiosity','desire','disappointment','disapproval','disgust','embarrassment','excitement','fear','gratitude','grief','joy','love','nervousness','optimism','pride','realization','relief','remorse','sadness','surprise','neutral']
+
+    with db.connect() as conn:
+        print(f'SELECT {",".join(columns)} FROM IMDB_Reviews_{type_option}_Predictions AS P JOIN IMDB_Reviews_{type_option} AS R ON R.id = P.id JOIN IMDB_{type_option} T ON T.id_title = R.id_title WHERE T.title = \'{selected_first_title}\'')
+        first_title_predictions = list(conn.execute(f'SELECT {",".join(columns)} FROM IMDB_Reviews_{type_option}_Predictions AS P JOIN IMDB_Reviews_{type_option} AS R ON R.id = P.id JOIN IMDB_{type_option} T ON T.id_title = R.id_title WHERE T.title = \'{selected_first_title}\''))
+        second_title_predictions = list(conn.execute(f'SELECT {",".join(columns)} FROM IMDB_Reviews_{type_option}_Predictions AS P JOIN IMDB_Reviews_{type_option} AS R ON R.id = P.id JOIN IMDB_{type_option} T ON T.id_title = R.id_title WHERE T.title = \'{selected_second_title}\''))
+
+    first_title_pred_df = pd.DataFrame(first_title_predictions, columns=columns)
+    second_title_pred_df = pd.DataFrame(second_title_predictions, columns=columns)
     
-    # cursor.execute(f'SELECT * FROM IMDB_Revies_{type_option}_Predictions P JOIN IMDB_Reviews_{type_option} R ON R.id=P.id JOIN IMDB_{type_option} T ON R.id_title=T.id_title')
+    first_title_pred_mean = first_title_pred_df[columns].mean()
+    second_title_pred_mean = second_title_pred_df[columns].mean()
+
+    print(first_title_pred_mean)
+    print(second_title_pred_mean)
+
+    fig = go.Figure(data=[go.Scatterpolar(r=first_title_pred_mean.to_list(), theta=columns, fill='toself'), 
+                          go.Scatterpolar(r=second_title_pred_mean.to_list(), theta=columns, fill='toself')])
     
-    return f"Filme selecionado: {selected_option}. Button clicked {n_clicks} times.", fig
+    
+    return f"Titles selected: {selected_first_title} e {selected_second_title}. Button clicked {n_clicks} times.", fig
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='0.0.0.0', port=8050)
+    app.run_server(debug=True)

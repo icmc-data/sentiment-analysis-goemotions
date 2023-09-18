@@ -12,6 +12,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 # from selenium.webdriver.chrome.options import Options as ChromeOptions
 # from selenium.webdriver.chrome.service import Service
 # from webdriver_manager.chrome import ChromeDriverManager
+import traceback
 import psycopg2
 
 
@@ -63,7 +64,7 @@ def load_reviews_list(driver, wait, total_reviews):
                 # Execute JavaScript to click the "load more" button
                 driver.execute_script("arguments[0].click();", load_more_btn)
             except Exception as e:
-                print('Exception:', e)
+                print('Exception:', e, traceback.format_exc())
 
     review_list = wait.until(EC.visibility_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]')))
     return review_list
@@ -128,13 +129,13 @@ def imdb_scrape_reviews(driver, wait):
 def query_title(mydb, title_name, n_reviews, table_suffix):
     cursor = mydb.cursor()
     title_name = re.sub(r'\'', "''", title_name)
-    id = list(cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'"))
-    if len(id) == 0:
+    id_title = list(cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'"))
+    if len(id_title) == 0:
         result = cursor.execute(f'INSERT INTO IMDB_{table_suffix} (title, n_reviews) VALUES (%s, %s) RETURNING id_title', (title_name, n_reviews))
-        id = result.fetchone()[0]
+        id_title = result.fetchone()[0]
     else:
-        id = id[0][0]
-    return id
+        id_title = id_title[0][0]
+    return id_title
 
 
 def imdb_scrape(mydb, driver, wait, urls_list, table_suffix):
@@ -152,7 +153,7 @@ def imdb_scrape(mydb, driver, wait, urls_list, table_suffix):
             id = query_title(mydb, title_name, len(reviews), table_suffix)
             insert_reviews(mydb, reviews, id, table_suffix)
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())
             print('Error fetching reviews')
         break
 
