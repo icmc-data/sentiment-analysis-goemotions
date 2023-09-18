@@ -1,0 +1,3 @@
+psycopg2-binary
+tqdm
+selenium==4.10.0

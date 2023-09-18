@@ -1,0 +1,13 @@
+selenium==4.9.1
+mysql-connector-python
+psycopg2==2.9.5
+sqlalchemy==1.4.45
+psycopg2-binary
+sqlalchemy==1.4.45
+tqdm==4.65.0
+torch==2.0.1
+transformers==4.30.2
+webdriver-manager==3.8.6
+dash
+pandas
+plotly
