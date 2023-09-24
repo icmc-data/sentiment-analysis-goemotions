@@ -17,7 +17,7 @@ def wait_for_db():
         try:
             # Tenta conectar ao banco de dados
             mydb = psycopg2.connect(
-                host='postgresql',
+                host=os.environ.get('POSTGRES_HOST'),
                 user=os.environ.get('POSTGRES_USER'),
                 password=os.environ.get('POSTGRES_PASSWORD'),
                 database=os.environ.get('POSTGRES_NAME'),
@@ -29,8 +29,8 @@ def wait_for_db():
             attempts += 1
             time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
     else:
-    # Caso atinja o limite de tentativas, exibe uma mensagem de erro
-    print("Não foi possível conectar ao banco de dados após várias tentativas.")
+        print("Não foi possível conectar ao banco de dados após várias tentativas.")
+        # Caso atinja o limite de tentativas, exibe uma mensagem de erro
 
 mydb = wait_for_db()
 
@@ -49,41 +49,41 @@ dropdown_options = {'Movies':
                     [{'label': title, 'value': title} for title in series_titles]
 }
 
-app.layout = html.Div(
-    children=[
-        html.H1("IMDB reviews classifications", style = {"text-align": "center", "margin":"20px 0px 20px 0px"}),
-        html.Div(
-            children = [
-                html.P("In this website you are able to select a title that is currently in the top 250 movies or top 250 series in IMDB and check for the overall classification of the reviews from this title in the same page. For this project, we use a BERT based model with finetuning in goemotions dataset (but with resampled set of labels)")
-            ],
-            style = {"background":"#fafafa", "width":"80%", "margin": "auto auto", "padding":"40px 40px 40px 40px", "boder-radius": "5px"}
-        ),
-        html.Div(
-            id = 'container-options',
-            children=[
-                dcc.RadioItems(id='check_options', options=[
-                               'Movies', 'Series'], value='Movies', inline=True),
-                dcc.Dropdown(
-                    id="dropdown-1",
-                    options=dropdown_options['Movies'],
-                    value=dropdown_options['Movies'][0]['value'],  # Default selected option
-                    style = {"width":"80%"}
-                ),
-                dcc.Dropdown(
-                    id="dropdown-2",
-                    options=dropdown_options['Movies'],
-                    value=dropdown_options['Movies'][1]['value'],  # Default selected option
-                    style = {"width":"80%"}
-                ),
-                html.Button("Select", id="send-button", n_clicks=0, style={"width": "100px"}),
-            ],
-            style = {"display": "flex", "flex-direction": "row", "width": "80%", "justify-content": "space-evenly", "background": "#ffffff", "margin": "40px auto 40px auto", "gap": "10px", "align-items": "stretch"}
-        ),
-        html.Div(id='output'),  # Output div to display the selected option
-        dcc.Graph(id='plot', figure={})
-    ],
-    style = {"font-family": "Courier New"}
-)
+# app.layout = html.Div(
+#     children=[
+#         html.H1("IMDB reviews classifications", style = {"text-align": "center", "margin":"20px 0px 20px 0px"}),
+#         html.Div(
+#             children = [
+#                 html.P("In this website you are able to select a title that is currently in the top 250 movies or top 250 series in IMDB and check for the overall classification of the reviews from this title in the same page. For this project, we use a BERT based model with finetuning in goemotions dataset (but with resampled set of labels)")
+#             ],
+#             style = {"background":"#fafafa", "width":"80%", "margin": "auto auto", "padding":"40px 40px 40px 40px", "boder-radius": "5px"}
+#         ),
+#         html.Div(
+#             id = 'container-options',
+#             children=[
+#                 dcc.RadioItems(id='check_options', options=[
+#                                'Movies', 'Series'], value='Movies', inline=True),
+#                 dcc.Dropdown(
+#                     id="dropdown-1",
+#                     options=dropdown_options['Movies'],
+#                     value=dropdown_options['Movies'][0]['value'],  # Default selected option
+#                     style = {"width":"80%"}
+#                 ),
+#                 dcc.Dropdown(
+#                     id="dropdown-2",
+#                     options=dropdown_options['Movies'],
+#                     value=dropdown_options['Movies'][1]['value'],  # Default selected option
+#                     style = {"width":"80%"}
+#                 ),
+#                 html.Button("Select", id="send-button", n_clicks=0, style={"width": "100px"}),
+#             ],
+#             style = {"display": "flex", "flex-direction": "row", "width": "80%", "justify-content": "space-evenly", "background": "#ffffff", "margin": "40px auto 40px auto", "gap": "10px", "align-items": "stretch"}
+#         ),
+#         html.Div(id='output'),  # Output div to display the selected option
+#         dcc.Graph(id='plot', figure={})
+#     ],
+#     style = {"font-family": "Courier New"}
+# )
 
 @app.callback(
     dash.dependencies.Output('dropdown-1', 'options'),
@@ -127,4 +127,4 @@ def update_output(n_clicks, selected_first_title, selected_second_title, type_op
     return f"Titles selected: {selected_first_title} e {selected_second_title}. Button clicked {n_clicks} times.", fig
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True, host="0.0.0.0", port=8050, use_reloader=False)

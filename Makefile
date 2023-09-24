@@ -15,7 +15,7 @@ build:
 down:
 	$(DOCKER_COMPOSE_DOWN)
 
-up: build
+up:
 	POSTGRES_NAME=$(POSTGRES_NAME) \
 	POSTGRES_USER=$(POSTGRES_USER) \
 	POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
@@ -26,5 +26,8 @@ up: build
 clean:
 	docker image prune -a
 
-scrap:
+scraping:
 	docker exec -it scraping sh -c 'python3 scraping.py'
+
+app:
+	docker exec -it dashapp sh -c 'python3 app.py'

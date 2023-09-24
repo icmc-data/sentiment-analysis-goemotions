@@ -1,5 +1,7 @@
 FROM python:3.8-slim-buster
 
+USER root
+
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y postgresql \
@@ -16,5 +18,5 @@ COPY app.py .
   
 EXPOSE 8050
 
-CMD [ "python", "app.py"]
-# CMD ["tail", "-f"]
+# CMD [ "python", "app.py"]
+CMD ["tail", "-f"]

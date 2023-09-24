@@ -1,6 +1,5 @@
 dash
 plotly 
 pandas
-mysql-connector-python
 gunicorn==20.0.4
 psycopg2-binary

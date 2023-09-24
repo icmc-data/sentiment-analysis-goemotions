@@ -29,16 +29,16 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
 
   dashboard:
-    container_name: dash-app
+    container_name: dashapp
+    image: python:latest
     build:
       context: src/app
-    restart: always
     ports:
       - 5000:8050
     depends_on:
       - postgresql
     environment:
-      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_HOST: postgresql
       POSTGRES_NAME: ${POSTGRES_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
