@@ -1,6 +1,8 @@
 import re
 import os
 import time
+import traceback
+import psycopg2
 
 from tqdm import tqdm
 from dataclasses import dataclass
@@ -10,34 +12,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import traceback
-import psycopg2
+
 
 NUM_REVIEWS_PER_LOAD = 25
-TITLES_TO_FETCH = 250
-
-
-def wait_for_db():
-    max_attempts = 10
-    attempts = 0
-    while attempts < max_attempts:
-        try:
-            # Tenta conectar ao banco de dados
-            mydb = psycopg2.connect(
-                host='postgresql',
-                user=os.environ.get('POSTGRES_USER'),
-                password=os.environ.get('POSTGRES_PASSWORD'),
-                database=os.environ.get('POSTGRES_NAME'),
-                port=os.environ.get('POSTGRES_PORT')
-            )
-            return mydb
-        except Exception as err:
-            print(f"Erro ao conectar ao banco de dados: {err}")
-            attempts += 1
-            time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
-    # Caso atinja o limite de tentativas, exibe uma mensagem de erro
-    print("Não foi possível conectar ao banco de dados após várias tentativas.")
-
+TITLES_TO_FETCH = 2
 
 @dataclass
 class ReviewInfo:
@@ -51,29 +29,29 @@ class ReviewInfo:
 class DatabaseHelper:
     def __init__(self):
         print("Init DB connection")
-        self.mydb = wait_for_db()
+        self.mydb = self.wait_for_db()
         self.cursor = self.mydb.cursor()
 
-    def insert_review(self, table_suffix: str, title_id, review: ReviewInfo):
+    def insert_review(self, title_id, review: ReviewInfo):
         self.cursor.execute(
-            f'INSERT INTO IMDB_Reviews_{table_suffix} \
-            (review_rating, review_title, review_author, review_date, review_text, id_title) \
+            f'INSERT INTO IMDB_Reviews \
+            (review_rating, review_title, review_author, review_date, review_text, title_id) \
             VALUES (%s, %s, %s, %s, %s, %s)',
             (review.rating, review.title, review.author, review.date, review.text, title_id)
         )
 
-    def query_title(self, title_name, n_reviews, table_suffix) -> str:
+    def query_title(self, title_name, n_reviews) -> str:
         title_name = re.sub(r'\'', "''", title_name)
-        self.cursor.execute(f"SELECT id_title FROM IMDB_{table_suffix} WHERE title='{title_name}'")
-        id_title = self.cursor.fetchone()
-        if id_title is None:
+        self.cursor.execute(f"SELECT title FROM IMDB_Titles WHERE title='{title_name}'")
+        title_id = self.cursor.fetchone()
+        if title_id is None:
             self.cursor.execute(
-                f'INSERT INTO IMDB_{table_suffix} (title, n_reviews) VALUES (%s, %s) RETURNING id_title',
+                f'INSERT INTO IMDB_Titles (title, n_reviews) VALUES (%s, %s) RETURNING title_id',
                 (title_name, n_reviews))
-            id_title = self.cursor.fetchone()[0]
+            title_id = self.cursor.fetchone()[0]
         else:
-            id_title = id_title
-        return id_title
+            title_id = title_id
+        return title_id
 
     def commit_changes(self):
         self.mydb.commit()
@@ -82,6 +60,28 @@ class DatabaseHelper:
         self.cursor.close()
         self.mydb.close()
         print("Close DB connection")
+
+    @staticmethod
+    def wait_for_db():
+        max_attempts = 10
+        attempts = 0
+        while attempts < max_attempts:
+            try:
+                # Tenta conectar ao banco de dados
+                mydb = psycopg2.connect(
+                    host='postgresql',
+                    user=os.environ.get('POSTGRES_USER'),
+                    password=os.environ.get('POSTGRES_PASSWORD'),
+                    database=os.environ.get('POSTGRES_NAME'),
+                    port=os.environ.get('POSTGRES_PORT')
+                )
+                return mydb
+            except Exception as err:
+                print(f"Erro ao conectar ao banco de dados: {err}")
+                attempts += 1
+                time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
+        # Caso atinja o limite de tentativas, exibe uma mensagem de erro
+        print("Não foi possível conectar ao banco de dados após várias tentativas.")
 
 
 class ImdbScraper:
@@ -153,10 +153,9 @@ class ImdbScraper:
         preprocessed_text = re.sub(r'\'', "''", preprocessed_text)
         return preprocessed_text.lower()
 
-    def insert_review_info(self, reviews_info: list, title_id: str, table_suffix: str):
+    def insert_review_info(self, reviews_info: list, title_id: str):
         for review_info in reviews_info:
-            self.db_helper.insert_review(
-                table_suffix, title_id, review_info)
+            self.db_helper.insert_review(title_id, review_info)
 
     def fetch_reviews_info(self, reviews_list: list) -> list:
         reviews_info: list[ReviewInfo] = []
@@ -220,14 +219,14 @@ class ImdbScraper:
         title_link_list = [url for url in url_list if url.startswith('https://www.imdb.com/title/')]
         
         number_titles = len(title_link_list)
-        print(number_titles)
 
         if number_titles == 0:
             raise Exception(f"Could not fetch titles from {reviews_category_url} links correctly")
 
         return title_link_list[:min(number_titles, TITLES_TO_FETCH)]
 
-    def fetch_imdb_reviews(self, urls_list: list, table_suffix: str):
+    def fetch_imdb_reviews(self, urls_list: list):
+        print(f'Fetching {len(urls_list)} titles')
         for url in tqdm(urls_list):
             try:
                 review_url = re.sub("(\?[A-Za-z0-9\_=&\\\/-]*)", 'reviews', url)
@@ -238,8 +237,8 @@ class ImdbScraper:
                 total_reviews = self.get_number_reviews()
                 reviews_info = self.fetch_reviews_info_list(total_reviews)
 
-                title_id = self.db_helper.query_title(title_name, len(reviews_info), table_suffix)
-                self.insert_review_info(reviews_info, title_id, table_suffix)
+                title_id = self.db_helper.query_title(title_name, len(reviews_info))
+                self.insert_review_info(reviews_info, title_id)
 
             except Exception as e:
                 print(traceback.format_exc())
@@ -247,14 +246,14 @@ class ImdbScraper:
 
     def scrape_reviews(self):
         try:
-            movies_links = self.fetch_title_link_list('https://www.imdb.com/chart/top/?ref_=nv_mv_250')
-            series_links = self.fetch_title_link_list('https://www.imdb.com/chart/toptv/?ref_=nv_tvv_250')
+            title_links1 = self.fetch_title_link_list('https://www.imdb.com/chart/top/?ref_=nv_mv_250')
+            title_links2 = self.fetch_title_link_list('https://www.imdb.com/chart/toptv/?ref_=nv_tvv_250')
         except Exception as e:
             print(e)
             exit()
 
-        self.fetch_imdb_reviews(movies_links, table_suffix='Movies')
-        self.fetch_imdb_reviews(series_links, table_suffix='Series')
+        self.fetch_imdb_reviews(title_links1)
+        self.fetch_imdb_reviews(title_links2)
         self.db_helper.commit_changes()
         self.db_helper.close_connection()
         print("IMDB Reviews successfully retrieved and inserted in DB")

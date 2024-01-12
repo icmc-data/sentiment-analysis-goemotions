@@ -31,3 +31,6 @@ scraping:
 
 app:
 	docker exec -it dashapp sh -c 'python3 app.py'
+
+predict:
+	docker exec -it inference sh -c 'python3 inference.py'

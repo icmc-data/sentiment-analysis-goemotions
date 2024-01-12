@@ -11,4 +11,5 @@ RUN pip install --upgrade pip \
 
 COPY scraping.py .
 
+CMD ["tail", "-f"]
 # RUN ["python3", "scraping.py"]

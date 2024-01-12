@@ -11,3 +11,6 @@ webdriver-manager==3.8.6
 dash
 pandas
 plotly
+seaborn
+evaluate
+scikit-learn

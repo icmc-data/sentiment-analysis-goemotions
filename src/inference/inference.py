@@ -1,15 +1,134 @@
 import re
 import os 
 import time
+import traceback
+import psycopg2
+import torch
 
 from tqdm import tqdm 
-
-import torch
+from dataclasses import dataclass
+from scipy.special import softmax
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer
 from transformers import BertForSequenceClassification
+from transformers import AdamW, get_linear_schedule_with_warmup, AutoModelForSequenceClassification
 
 MAX_LENGTH  = 512
+
+go_emotions_labels = [
+    'admiration', 
+    'amusement',
+    'anger',
+    'annoyance',
+    'approval',
+    'caring',
+    'confusion',
+    'curiosity',
+    'desire',
+    'disappointment',
+    'disapproval',
+    'disgust',
+    'embarrassment',
+    'excitement',
+    'fear',
+    'gratitude',
+    'grief',
+    'joy',
+    'love',
+    'nervousness',
+    'optimism',
+    'pride',
+    'realization',
+    'relief',
+    'remorse',
+    'sadness',
+    'surprise',
+    'neutral'
+]
+
+
+@dataclass
+class ReviewInfo:
+    text: str
+    rating: int
+    title: str
+    author: str
+    date: str
+
+class DatabaseHelper:
+    def __init__(self):
+        print("Init DB connection")
+        self.mydb = self.wait_for_db()
+        self.cursor = self.mydb.cursor()
+
+    def insert_review(self, title_id, review: ReviewInfo):
+        self.cursor.execute(
+            f'INSERT INTO IMDB_Reviews \
+            (review_rating, review_title, review_author, review_date, review_text, id_title) \
+            VALUES (%s, %s, %s, %s, %s, %s)',
+            (review.rating, review.title, review.author, review.date, review.text, title_id)
+        )
+
+    def query_title(self, title_name, n_reviews) -> str:
+        title_name = re.sub(r'\'', "''", title_name)
+        self.cursor.execute(f"SELECT id_title FROM IMDB_Titles WHERE title='{title_name}'")
+        id_title = self.cursor.fetchone()
+        if id_title is None:
+            self.cursor.execute(
+                f'INSERT INTO IMDB_Titles (title, n_reviews) VALUES (%s, %s) RETURNING id_title',
+                (title_name, n_reviews))
+            id_title = self.cursor.fetchone()[0]
+        else:
+            id_title = id_title
+        return id_title
+
+    def commit_changes(self):
+        self.mydb.commit()
+
+    def close_connection(self):
+        self.cursor.close()
+        self.mydb.close()
+        print("Close DB connection")
+
+    def get_ids_unpredicted(self) -> list:
+        self.cursor.execute(
+            f'SELECT R.review_id, R.review_text FROM IMDB_Reviews \
+            as R LEFT JOIN IMDB_Reviews_Predictions as P ON \
+            R.review_id=P.review_id'
+        )
+        return list(self.cursor.fetchall())
+
+    def insert_predictions(self, id, predict):
+        for i in range(len(predict)):
+            self.cursor.execute(
+                f'INSERT INTO IMDB_Reviews_Predictions \
+                (review_id, emotion, value) VALUES (%s, %s, %s)', 
+                (id, go_emotions_labels[i], float(predict[i]))
+            )
+
+
+    @staticmethod
+    def wait_for_db():
+        max_attempts = 10
+        attempts = 0
+        while attempts < max_attempts:
+            try:
+                # Tenta conectar ao banco de dados
+                mydb = psycopg2.connect(
+                    host='postgresql',
+                    user=os.environ.get('POSTGRES_USER'),
+                    password=os.environ.get('POSTGRES_PASSWORD'),
+                    database=os.environ.get('POSTGRES_NAME'),
+                    port=os.environ.get('POSTGRES_PORT')
+                )
+                return mydb
+            except Exception as err:
+                print(f"Erro ao conectar ao banco de dados: {err}")
+                attempts += 1
+                time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
+        # Caso atinja o limite de tentativas, exibe uma mensagem de erro
+        print("Não foi possível conectar ao banco de dados após várias tentativas.")
+
 
 class UnlabeledDataset(Dataset):
     def __init__(self, ids, reviews):
@@ -25,87 +144,99 @@ class UnlabeledDataset(Dataset):
         input_ids = self.reviews['input_ids'][idx].squeeze(0)
         return id, input_ids, attention_mask
 
-def get_ids_unpredicted(mydb, table_suffix):
-    return list(mydb.execute(f'SELECT R.id, R.review_text FROM IMDB_Reviews_{table_suffix} as R LEFT JOIN IMDB_Reviews_{table_suffix}_Predictions as P ON R.id=P.id WHERE P.class_1 IS NULL'))
+class ImdbPredict:
+    def __init__(self):
+        self.db_helper = DatabaseHelper()
 
-def load_model(device, base):
-    model = BertForSequenceClassification.from_pretrained(base, num_labels=2, output_attentions=False, output_hidden_states=False)
+    @staticmethod
+    def load_model(device, base):
+        model = AutoModelForSequenceClassification.from_pretrained(base, num_labels=28)
 
-    # state_dict = torch.load('./../model_weights.pth')
-    # model.load_state_dict(state_dict, strict=False)
+        model.load_state_dict(torch.load('best_model.pt', map_location=torch.device('cpu')))
 
-    model = model.to(device)
-    model.eval()
+        # model = model.to(device)
+        model.eval()
 
-    return model
+        return model
 
-def load_reviews(mydb, table_suffix):
-    movie_lists = get_ids_unpredicted(mydb, table_suffix)
-    print(len(movie_lists))
+    def load_reviews(self):
+        movie_lists = self.db_helper.get_ids_unpredicted()
+        print(len(movie_lists))
 
-    reviews = [text for _, text in movie_lists]
-    ids = [int(id) for id, _ in movie_lists]
+        reviews = [text for _, text in movie_lists]
+        ids = [int(id) for id, _ in movie_lists]
 
-    return ids, reviews
+        return ids, reviews
 
-def tokenize_reviews(reviews, base):
-    tokenizer = AutoTokenizer.from_pretrained(base)
+    @staticmethod
+    def tokenize_reviews(reviews, base):
+        tokenizer = AutoTokenizer.from_pretrained(base)
+        
+        encoded_inputs = tokenizer(
+            reviews,
+            padding=True,
+            truncation=True,
+            return_tensors='pt',
+            max_length=MAX_LENGTH
+        )
 
-    encoded_inputs = tokenizer(
-                reviews,
-                padding=True,
-                truncation=True,
-                return_tensors='pt',
-                max_length=MAX_LENGTH
-    )
+        return encoded_inputs
 
-    return encoded_inputs
+    @staticmethod
+    def get_dataloader(ids, encoded_inputs, batch_size=8):
+        dataset = UnlabeledDataset(ids, encoded_inputs)
+        return DataLoader(dataset, batch_size=1)
 
-def get_dataloader(ids, encoded_inputs, batch_size=8):
-    dataset = UnlabeledDataset(ids, encoded_inputs)
-    return DataLoader(dataset, batch_size=batch_size)
+    @staticmethod
+    def inference_loop(device, model, encoded_inputs):
+        bar = tqdm(
+            total=len(encoded_inputs), 
+            desc=f"Inferece on imdb-dataset", 
+            unit="steps", position=0, leave=False
+        )
+        
+        predictions_results = {}
+        for batch in iter(encoded_inputs):
+            ids, input_ids, attention_mask = batch
+            with torch.no_grad():
+                outputs = model(
+                    input_ids=input_ids.to(device), 
+                    attention_mask=attention_mask.to(device))
+                logits = outputs.logits
+                for id, logit in zip(ids, logits):
+                    predictions_results[id.item()] = logit.cpu().numpy()
+            bar.update(1)
 
-def inference_loop(device, model, dataloader):
-    bar = tqdm(total=len(dataloader), desc=f"Inferece on imdb-dataset", unit="steps", position=0, leave=False)
-    
-    predictions_results = {}
-    for i, batch in enumerate(dataloader):
-        ids, input_ids, attention_mask = batch
-        with torch.no_grad():
-            outputs = model(input_ids=input_ids.to(device), attention_mask=attention_mask.to(device))
-            logits = outputs.logits
-            for id, logit in zip(ids, logits):
-                predictions_results[id.item()] = logit.cpu().numpy()
-        bar.update(1)
+        return predictions_results
 
-    return predictions_results
+    def predict_database(self):
+        base = 'distilbert-base-uncased'
 
-def predict_database(mydb, table_suffix):
-    base = 'bert-base-uncased'
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        print(f'Device set to: {device}')
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print(f'Device set to: {device}')
+        model = self.load_model(device, base)
 
-    model = load_model(device, base)
+        ids, reviews = self.load_reviews()
 
-    ids, reviews = load_reviews(mydb, table_suffix)
+        print(ids, reviews)
+        encoded_inputs = self.tokenize_reviews(reviews, base)
+        print(encoded_inputs)
+        dataloader = self.get_dataloader(ids, encoded_inputs)
+        
+        predictions_results = self.inference_loop(device, model, dataloader)
 
-    encoded_inputs = tokenize_reviews(reviews, base)
-    
-    dataloader = get_dataloader(ids, encoded_inputs, batch_size=8)
-    
-    predictions_results = inference_loop(device, model, dataloader)
+        return predictions_results
 
-    return predictions_results
-
-def predict_reviews(mydb):
-    tables = ['Movies', 'Series']
-    for table in tables:
-        predictions_results = predict_database(mydb, table)
-        print(predictions_results)
+    def predict_reviews(self):
+        predictions_results = self.predict_database()
         
         for id, predict in predictions_results.items():
-            print(f'INSERT INTO IMDB_Reviews_{table}_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
-            mydb.execute(f'INSERT INTO IMDB_Reviews_{table}_Predictions (id, class_1, class_2) VALUES (%s, %s, %s)', (id, float(predict[0]), float(predict[1])))
+            predict = softmax(predict)
+            self.db_helper.insert_predictions(id, predict)
         
-        print(predictions_results)
+if __name__ == "__main__":
+    imdb_predict = ImdbPredict()
+    imdb_predict.predict_reviews()
+    imdb_predict.db_helper.commit_changes()
+    imdb_predict.db_helper.close_connection()

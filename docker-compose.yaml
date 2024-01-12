@@ -4,6 +4,7 @@ services:
   postgresql:
     container_name: database
     image: postgres:latest
+    restart: always
     volumes:
       - postgres-vol:/var/lib/postgresql/data
       - ./src/db/postgres_init.sql:/docker-entrypoint-initdb.d/postgres_init.sql
@@ -29,8 +30,8 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
 
   dashboard:
+    image: python:dash
     container_name: dashapp
-    image: python:latest
     build:
       context: src/app
     ports:
@@ -44,7 +45,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PORT: ${POSTGRES_PORT}
 
-
+  inference:
+    image: python:inference
+    container_name: inference
+    build:
+      context: src/inference
+    environment:
+      POSTGRES_HOST: postgresql
+      POSTGRES_NAME: ${POSTGRES_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: ${POSTGRES_PORT}
 
 volumes:
   postgres-vol:
