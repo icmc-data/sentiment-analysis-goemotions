@@ -9,6 +9,7 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 - [@allthecoder](https://github.com/allthecoder)
 - [@bmarquescost](https://github.com/bmarquescost)
 - [@vitorfrois](https://www.github.com/vitorfrois)
+- [@artur]()
 
 
 ## Features
@@ -27,8 +28,18 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 Run the docker project with
 
 ```bash
+  make build
   make up
 ```
+
+And then, running each part of the code with
+
+```bash
+  make scraping
+  make inference
+  make app
+```
+
 Access the Dash App at [http://0.0.0.0:5000/](http://0.0.0.0:5000/) to visualize results.
 
 Do not forget to pause the container after using it 
