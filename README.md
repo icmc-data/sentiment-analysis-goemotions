@@ -36,7 +36,7 @@ And then, running each part of the code with
 
 ```bash
   make scraping
-  make inference
+  make predict
   make app
 ```
 
