@@ -10,6 +10,7 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 - [@bmarquescost](https://github.com/bmarquescost)
 - [@vitorfrois](https://www.github.com/vitorfrois)
 - [@artur]()
+- [@CuriousGu](https://www.github.com/CuriousGu)
 
 
 ## Features
