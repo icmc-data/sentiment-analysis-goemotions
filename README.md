@@ -9,7 +9,7 @@ sometimes it is difficult to know the emotions hide in each one. With this proje
 - [@allthecoder](https://github.com/allthecoder)
 - [@bmarquescost](https://github.com/bmarquescost)
 - [@vitorfrois](https://www.github.com/vitorfrois)
-- [@artur]()
+- [@Deflyer](https://www.github.com/Deflyer)
 - [@CuriousGu](https://www.github.com/CuriousGu)
 
 
