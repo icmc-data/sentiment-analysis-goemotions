@@ -4,12 +4,11 @@ import time
 import traceback
 import psycopg2
 import torch
-
 from tqdm import tqdm 
 from dataclasses import dataclass
 from scipy.special import softmax
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, DistilBertTokenizer
 from transformers import BertForSequenceClassification
 from transformers import AdamW, get_linear_schedule_with_warmup, AutoModelForSequenceClassification
 
@@ -92,18 +91,18 @@ class DatabaseHelper:
 
     def get_ids_unpredicted(self) -> list:
         self.cursor.execute(
-            f'SELECT R.review_id, R.review_text FROM IMDB_Reviews \
+            f'SELECT R.review_id, R.review_title, R.review_text FROM IMDB_Reviews \
             as R LEFT JOIN IMDB_Reviews_Predictions as P ON \
             R.review_id=P.review_id'
         )
         return list(self.cursor.fetchall())
 
-    def insert_predictions(self, id, predict):
-        for i in range(len(predict)):
+    def insert_predictions(self, id, review_predict, title_predict):
+        for i in range(len(review_predict)):
             self.cursor.execute(
                 f'INSERT INTO IMDB_Reviews_Predictions \
-                (review_id, emotion, value) VALUES (%s, %s, %s)', 
-                (id, go_emotions_labels[i], float(predict[i]))
+                (review_id, emotion, review_value, title_value) VALUES (%s, %s, %s, %s)', 
+                (id, go_emotions_labels[i], float(review_predict[i]),float(title_predict[i]))
             )
 
 
@@ -154,7 +153,6 @@ class ImdbPredict:
 
         model.load_state_dict(torch.load('best_model.pt', map_location=torch.device('cpu')))
 
-        # model = model.to(device)
         model.eval()
 
         return model
@@ -163,10 +161,12 @@ class ImdbPredict:
         movie_lists = self.db_helper.get_ids_unpredicted()
         print(len(movie_lists))
 
-        reviews = [text for _, text in movie_lists]
-        ids = [int(id) for id, _ in movie_lists]
+        ids, titles, reviews = zip(*movie_lists)
+        ids = list(ids)
+        reviews = list(reviews)
+        titles = list(titles)
 
-        return ids, reviews
+        return ids, reviews, titles
 
     @staticmethod
     def tokenize_reviews(reviews, base):
@@ -217,25 +217,32 @@ class ImdbPredict:
 
         model = self.load_model(device, base)
 
-        ids, reviews = self.load_reviews()
+        ids, reviews, titles = self.load_reviews()
 
-        print(ids, reviews)
-        encoded_inputs = self.tokenize_reviews(reviews, base)
-        print(encoded_inputs)
-        dataloader = self.get_dataloader(ids, encoded_inputs)
+        print(ids, reviews, titles)
+        review_encoded_inputs = self.tokenize_reviews(reviews, base)
+        title_encoded_inputs = self.tokenize_reviews(titles, base)
+
+        print(review_encoded_inputs)
+        review_dataloader = self.get_dataloader(ids, review_encoded_inputs)
+        title_dataloader = self.get_dataloader(ids, title_encoded_inputs)
         
-        predictions_results = self.inference_loop(device, model, dataloader)
+        review_predictions_results = self.inference_loop(device, model, review_dataloader)
 
-        return predictions_results
+        title_predictions_results =  self.inference_loop(device, model, title_dataloader)
+
+        return review_predictions_results, title_predictions_results
 
     def predict_reviews(self):
-        predictions_results = self.predict_database()
+        review_predictions_results, title_predictions_results = self.predict_database()
         
-        for id, predict in predictions_results.items():
+        for id, predict in review_predictions_results.items():
             predict = softmax(predict)
-            self.db_helper.insert_predictions(id, predict)
+            title = title_predictions_results.get(id)
+            self.db_helper.insert_predictions(id, predict, title)
         
 if __name__ == "__main__":
+
     imdb_predict = ImdbPredict()
     imdb_predict.predict_reviews()
     imdb_predict.db_helper.commit_changes()
