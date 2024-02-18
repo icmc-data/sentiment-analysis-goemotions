@@ -25,7 +25,8 @@ CREATE TABLE IMDB_Reviews (
 CREATE TABLE IMDB_Reviews_Predictions (
     review_id INTEGER,
     emotion VARCHAR(20),
-    value NUMERIC(12,6),
+    review_value NUMERIC(12,6),
+    title_value NUMERIC(12,6),
     PRIMARY KEY (review_id, emotion),
     CONSTRAINT id_review_titles FOREIGN KEY (review_id) REFERENCES IMDB_Reviews (review_id)
 );
