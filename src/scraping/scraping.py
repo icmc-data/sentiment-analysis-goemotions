@@ -15,7 +15,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 
 NUM_REVIEWS_PER_LOAD = 25
-TITLES_TO_FETCH = 10
+TITLES_TO_FETCH = 50
 
 @dataclass
 class ReviewInfo:

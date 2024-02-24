@@ -6,16 +6,19 @@ import plotly.graph_objects as go
 import pandas as pd 
 import psycopg2
 import numpy
+from PIL import Image
 
 app = dash.Dash(__name__)
 
 columns = ['admiration','amusement','anger','annoyance','approval','caring','confusion','curiosity','desire','disappointment','disapproval','disgust','embarrassment','excitement','fear','gratitude','grief','joy','love','nervousness','optimism','pride','realization','relief','remorse','sadness','surprise','neutral']
 
+pil_image = Image.open('data.jpg')
+
 def dict_to_markdown(titles_list: dict, n_titles: int = 3) -> str:
     md = ''''''
     for i in range(n_titles):
         elem = titles_list[i]
-        md += f'**{elem[0]}**: {elem[1]:.2f}  \n\n'
+        md += f'**{elem[0]}**: {elem[1]:.2f}%  \n\n'
 
     return md
     
@@ -92,10 +95,10 @@ dropdown_options = {'Titles':
 app.layout = html.Div(
     children=[
         html.H1("Cinema Recommendation based on IMDB", style = {"text-align": "center", "margin":"20px 0px 20px 0px"}),
+        html.Img(src=pil_image),
         html.Div(
             children = [
-                html.P("In this website you are able to select a title and check for recomendations based on similarity. The titles were vectorized according to IMDB Reviews sentiment analysis."),
-                html.Img(src='data.jpg')
+                html.P("In this website you are able to select a title and check for recomendations based on similarity. The titles were vectorized according to IMDB Reviews sentiment analysis.")
             ],
             style = {"background":"#fafafa", "width":"80%", "margin": "auto auto", "padding":"40px 40px 40px 40px", "boder-radius": "5px"}
         ),
