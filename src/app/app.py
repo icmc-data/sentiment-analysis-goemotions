@@ -47,7 +47,7 @@ def get_titles_vec(cursor):
 
     for title in all_titles:
         cursor.execute(
-            f'select p.emotion, avg(p.review_value) from imdb_titles as t join imdb_reviews as r \
+            f'select p.emotion, avg(p.review_value) + avg(p.title_value) as value from imdb_titles as t join imdb_reviews as r \
             on t.title_id = r.title_id join imdb_reviews_predictions as p on \
             r.review_id = p.review_id where title = \'{title[0]}\' group by \
             p.emotion order by p.emotion')

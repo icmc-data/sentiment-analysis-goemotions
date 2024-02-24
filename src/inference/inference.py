@@ -239,7 +239,9 @@ class ImdbPredict:
         for id, predict in review_predictions_results.items():
             predict = softmax(predict)
             title = title_predictions_results.get(id)
+            title = softmax(title)
             self.db_helper.insert_predictions(id, predict, title)
+
         
 if __name__ == "__main__":
 

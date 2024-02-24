@@ -15,7 +15,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 
 NUM_REVIEWS_PER_LOAD = 25
-TITLES_TO_FETCH = 2
+TITLES_TO_FETCH = 10
 
 @dataclass
 class ReviewInfo:
@@ -25,6 +25,14 @@ class ReviewInfo:
     author: str
     date: str
 
+def pre_process_text(text):
+    preprocessed_text = re.sub(r'http\S+', '', text) # removendo links
+    preprocessed_text = preprocessed_text.replace('"', '')    # removendo aspas
+    preprocessed_text = re.sub("[-*!,$><:.+?=]", '', preprocessed_text) # remove outras pontuações
+    preprocessed_text = re.sub(r'[.]\s+', '', preprocessed_text)  # removendo reticências 
+    preprocessed_text = re.sub(r'  ', ' ', preprocessed_text) # removendo espaços extras
+    return preprocessed_text.lower()[:min(len(preprocessed_text), 70)]
+
 
 class DatabaseHelper:
     def __init__(self):
@@ -33,6 +41,8 @@ class DatabaseHelper:
         self.cursor = self.mydb.cursor()
 
     def insert_review(self, title_id, review: ReviewInfo):
+        review.text = pre_process_text(review.text)
+
         self.cursor.execute(
             f'INSERT INTO IMDB_Reviews \
             (review_rating, review_title, review_author, review_date, review_text, title_id) \
