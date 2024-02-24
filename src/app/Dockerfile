@@ -15,6 +15,8 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
   
 COPY app.py .
+COPY img/data.jpg .
+
   
 EXPOSE 8050
 
